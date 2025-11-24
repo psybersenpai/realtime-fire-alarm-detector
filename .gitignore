@@ -1,0 +1,7 @@
+venv/
+*.o
+*.wav
+status.json
+detections.jsonl
+__pycache__/
+
