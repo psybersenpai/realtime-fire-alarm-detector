@@ -5,3 +5,4 @@ status.json
 detections.jsonl
 __pycache__/
 
+config.json
