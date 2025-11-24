@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-// Change this to your Pi's IP address
 const API_URL = 'http://192.168.50.116:5000'
 
 function App() {
@@ -9,6 +8,12 @@ function App() {
   const [detections, setDetections] = useState([])
   const [error, setError] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
+  const [showSettings, setShowSettings] = useState(false)
+  const [settings, setSettings] = useState({
+    topic: '',
+    enabled: false
+  })
+  const [saveMessage, setSaveMessage] = useState('')
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -29,15 +34,28 @@ function App() {
         const res = await fetch(`${API_URL}/api/detections`)
         if (res.ok) {
           const data = await res.json()
-          setDetections(data.reverse()) // Most recent first
+          setDetections(data.reverse())
         }
       } catch (err) {
         console.error('Failed to fetch detections:', err)
       }
     }
 
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/settings`)
+        if (res.ok) {
+          const data = await res.json()
+          setSettings(data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch settings:', err)
+      }
+    }
+
     fetchStatus()
     fetchDetections()
+    fetchSettings()
 
     const statusInterval = setInterval(fetchStatus, 1000)
     const detectionsInterval = setInterval(fetchDetections, 5000)
@@ -47,6 +65,34 @@ function App() {
       clearInterval(detectionsInterval)
     }
   }, [])
+
+  const handleSaveSettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      })
+      if (res.ok) {
+        setSaveMessage('✓ Settings saved')
+        setTimeout(() => setSaveMessage(''), 3000)
+      }
+    } catch (err) {
+      setSaveMessage('✗ Failed to save')
+    }
+  }
+
+  const handleTestNotification = async () => {
+    setSaveMessage('Sending test...')
+    try {
+      const res = await fetch(`${API_URL}/api/test-notification`, { method: 'POST' })
+      const data = await res.json()
+      setSaveMessage(data.success ? '✓ Test sent!' : '✗ Send failed')
+      setTimeout(() => setSaveMessage(''), 3000)
+    } catch (err) {
+      setSaveMessage('✗ Test failed')
+    }
+  }
 
   const getStateColor = () => {
     if (!status) return '#666'
@@ -68,11 +114,57 @@ function App() {
       <header>
         <h1>🔥 Fire Alarm Detection System</h1>
         <p className="subtitle">Real-Time Audio Monitoring Dashboard</p>
+        <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>
+          ⚙️ {showSettings ? 'Hide Settings' : 'Settings'}
+        </button>
       </header>
 
       {error && (
         <div className="error-banner">
           ⚠️ {error} — Is the detector running on the Pi?
+        </div>
+      )}
+
+      {showSettings && (
+        <div className="settings-card">
+          <h3>🔔 Push Notifications</h3>
+          
+          <div className="settings-form">
+            <div className="form-group">
+              <label>ntfy.sh Topic</label>
+              <input
+                type="text"
+                placeholder="my-fire-alarm-123"
+                value={settings.topic}
+                onChange={e => setSettings({ ...settings, topic: e.target.value })}
+              />
+              <small>
+                Pick a unique name. Subscribe at{' '}
+                <a href={`https://ntfy.sh/${settings.topic || 'your-topic'}`} target="_blank" rel="noreferrer">
+                  ntfy.sh/{settings.topic || 'your-topic'}
+                </a>
+                {' '}or use the <a href="https://ntfy.sh" target="_blank" rel="noreferrer">ntfy app</a>
+              </small>
+            </div>
+
+            <div className="form-group toggle-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.enabled}
+                  onChange={e => setSettings({ ...settings, enabled: e.target.checked })}
+                />
+                Enable Push Notifications
+              </label>
+            </div>
+
+            <div className="form-actions">
+              <button onClick={handleSaveSettings}>Save Settings</button>
+              <button onClick={handleTestNotification} className="secondary">Send Test</button>
+            </div>
+
+            {saveMessage && <p className="save-message">{saveMessage}</p>}
+          </div>
         </div>
       )}
 
