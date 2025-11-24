@@ -6,6 +6,8 @@ import requests
 import threading
 import time
 
+from flask import Flask, jsonify, request, send_from_directory
+
 app = Flask(__name__)
 CORS(app)
 
@@ -119,6 +121,18 @@ def save_settings():
 def test_notification():
     success = send_notification("🧪 Test alert from Fire Alarm Detection System")
     return jsonify({"success": success})
+
+# Serve React build
+@app.route('/')
+def serve_react():
+    return send_from_directory('frontend/dist', 'index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    try:
+        return send_from_directory('frontend/dist', path)
+    except:
+        return send_from_directory('frontend/dist', 'index.html')
 
 if __name__ == "__main__":
     watcher_thread = threading.Thread(target=detection_watcher, daemon=True)
